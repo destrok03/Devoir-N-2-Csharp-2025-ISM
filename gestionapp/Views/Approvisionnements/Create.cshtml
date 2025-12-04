@@ -1,0 +1,222 @@
+@model ApprovisionnementCreateVm
+
+<div class="container mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Nouvel approvisionnement</h1>
+        <a asp-action="Index" class="btn btn-outline-secondary">← Retour à la liste</a>
+    </div>
+
+    <form asp-action="Create" method="post" id="approForm">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Informations générales</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">Date d'approvisionnement</label>
+                            <input asp-for="DateApprovisionnement" class="form-control" type="date" />
+                            <span asp-validation-for="DateApprovisionnement" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Fournisseur</label>
+                            <select asp-for="FournisseurId" asp-items="Model.Fournisseurs" class="form-select">
+                                <option value="">Sélectionner un fournisseur</option>
+                            </select>
+                            <span asp-validation-for="FournisseurId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Référence</label>
+                            <input asp-for="Reference" class="form-control" placeholder="Référence de l'approvisionnement" />
+                            <span asp-validation-for="Reference" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observations</label>
+                            <textarea asp-for="Observations" class="form-control" placeholder="Observations ou commentaires sur cet approvisionnement"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5>Détails de l'approvisionnement</h5>
+
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label">Article</label>
+                                <select id="selectArticle" class="form-select">
+                                    <option value="">Sélectionner un article</option>
+                                    @foreach (var a in Model.Articles ?? new List<SelectListItem>())
+                                    {
+                                        <option value="@a.Value" data-libelle="@a.Text">@a.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Quantité</label>
+                                <input id="inputQuantite" type="number" min="1" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Prix unitaire (FCFA)</label>
+                                <input id="inputPrix" type="number" min="0" step="0.01" class="form-control" />
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="form-label">Montant total (FCFA)</label>
+                            <input id="montantAffichage" class="form-control" readonly value="0" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="button" id="btnAddLine" class="btn btn-outline-primary">
+                        <i class="fa fa-plus"></i> Ajouter un autre article
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des articles ajoutés -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5>Articles ajoutés</h5>
+                <div class="table-responsive">
+                    <table class="table" id="linesTable">
+                        <thead>
+                            <tr>
+                                <th>Article</th>
+                                <th>Quantité</th>
+                                <th>Prix unitaire</th>
+                                <th>Montant</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- rows inserted here -->
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                <td colspan="2"><strong id="totalFooter">0 FCFA</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <a asp-action="Index" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary">Enregistrer l'approvisionnement</button>
+        </div>
+    </form>
+
+    <!-- template row (hidden) -->
+    <template id="rowTemplate">
+        <tr>
+            <td class="articleName"></td>
+            <td><input type="number" name="" class="form-control line-qty" min="1" value="1" /></td>
+            <td><input type="number" name="" class="form-control line-price" step="0.01" min="0" value="0" /></td>
+            <td class="line-montant">0</td>
+            <td><button type="button" class="btn btn-sm btn-danger btn-remove">Supprimer</button></td>
+        </tr>
+    </template>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <script>
+        (function(){
+            const btnAdd = document.getElementById('btnAddLine');
+            const selectArticle = document.getElementById('selectArticle');
+            const inputQuantite = document.getElementById('inputQuantite');
+            const inputPrix = document.getElementById('inputPrix');
+            const linesTableBody = document.querySelector('#linesTable tbody');
+            const template = document.getElementById('rowTemplate');
+            const totalFooter = document.getElementById('totalFooter');
+            let index = 0;
+
+            function formatCurrency(v){
+                return new Intl.NumberFormat('fr-FR').format(v) + ' FCFA';
+            }
+
+            function recalcTotal(){
+                let total = 0;
+                document.querySelectorAll('.line-montant').forEach(td => {
+                    const v = parseFloat(td.dataset.value || td.textContent.replace(/\s|FCFA/g, '').replace(',', '.')) || 0;
+                    total += v;
+                });
+                totalFooter.textContent = formatCurrency(total);
+                const montantAff = document.getElementById('montantAffichage');
+                if(montantAff) montantAff.value = total;
+            }
+
+            function addRow(articleId, articleLabel, qty, price){
+                const clone = template.content.cloneNode(true);
+                const tr = clone.querySelector('tr');
+                const articleNameTd = tr.querySelector('.articleName');
+                const qtyInput = tr.querySelector('.line-qty');
+                const priceInput = tr.querySelector('.line-price');
+                const montantTd = tr.querySelector('.line-montant');
+                const removeBtn = tr.querySelector('.btn-remove');
+
+                // set values
+                articleNameTd.textContent = articleLabel;
+                qtyInput.value = qty || 1;
+                priceInput.value = price || 0;
+
+                // set names for model binding
+                qtyInput.name = `Lignes[${index}].Quantite`;
+                priceInput.name = `Lignes[${index}].PrixUnitaire`;
+
+                // hidden input for ArticleId
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = `Lignes[${index}].ArticleId`;
+                hidden.value = articleId;
+                tr.appendChild(hidden);
+
+                function updateLine(){
+                    const q = parseFloat(qtyInput.value) || 0;
+                    const p = parseFloat(priceInput.value) || 0;
+                    const montant = q * p;
+                    montantTd.dataset.value = montant;
+                    montantTd.textContent = formatCurrency(montant);
+                    recalcTotal();
+                }
+
+                qtyInput.addEventListener('input', updateLine);
+                priceInput.addEventListener('input', updateLine);
+
+                removeBtn.addEventListener('click', function(){
+                    tr.remove();
+                    recalcTotal();
+                });
+
+                // initial calc
+                updateLine();
+
+                linesTableBody.appendChild(tr);
+                index++;
+            }
+
+            btnAdd.addEventListener('click', function(){
+                const sel = selectArticle.value;
+                if(!sel){ alert('Sélectionnez d\u00ababord un article.'); return; }
+                const label = selectArticle.options[selectArticle.selectedIndex].text;
+                const qty = parseFloat(inputQuantite.value) || 1;
+                const price = parseFloat(inputPrix.value) || 0;
+                addRow(sel, label, qty, price);
+                // reset small inputs
+                inputQuantite.value = 1;
+                inputPrix.value = 0;
+                selectArticle.value = '';
+            });
+
+            // Optional: add one default empty row if model has none
+            // If VM has initial Lignes, we could render them server-side. For simplicity start empty.
+        })();
+    </script>
+}

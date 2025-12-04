@@ -1,0 +1,265 @@
+@model ApprovisionnementIndexVm
+
+@{
+    ViewData["Title"] = "Gestion des Approvisionnements";
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des Approvisionnements</h1>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouvel approvisionnement
+        </a>
+    </div>
+
+    <!-- Filtres et recherche -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Filtres et recherche</h5>
+            <form method="get" asp-action="Index" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="search" class="form-control" placeholder="Rechercher..." value="@ViewBag.SearchTerm" />
+                </div>
+                <div class="col-md-2">
+                    <select name="fournisseur" class="form-select">
+                        <option value="">Tous les fournisseurs</option>
+                        @foreach (var f in ViewBag.Fournisseurs ?? new List<object>())
+                        {
+                            <option value="@f.Value" selected="@(ViewBag.SelectedFournisseur?.ToString() == f.Value)">@f.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="article" class="form-select">
+                        <option value="">Tous les articles</option>
+                        @foreach (var a in ViewBag.Articles ?? new List<object>())
+                        {
+                            <option value="@a.Value" selected="@(ViewBag.SelectedArticle?.ToString() == a.Value)">@a.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="tri" class="form-select">
+                        <option value="recent" selected="@(ViewBag.Tri == null || ViewBag.Tri == "recent")">Date (récent → ancien)</option>
+                        <option value="ancien" selected="@(ViewBag.Tri == "ancien")">Date (ancien → récent)</option>
+                        <option value="montant" selected="@(ViewBag.Tri == "montant")">Montant</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Filtrer
+                    </button>
+                </div>
+
+                <!-- Date range in same form to ensure submission together -->
+                <div class="col-md-3 mt-3">
+                    <label class="form-label">Du</label>
+                    <input type="date" name="dateDebut" class="form-control" value="@ViewBag.DateDebut" />
+                </div>
+                <div class="col-md-3 mt-3">
+                    <label class="form-label">Au</label>
+                    <input type="date" name="dateFin" class="form-control" value="@ViewBag.DateFin" />
+                </div>
+                <div class="col-md-6 mt-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter"></i> Appliquer
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary w-100">Réinitialiser</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tableau des approvisionnements -->
+    <div class="table-responsive">
+        <table class="table table-hover table-striped">
+            <thead class="table-light">
+                <tr>
+                    <th>Référence</th>
+                    <th>Date</th>
+                    <th>Fournisseur</th>
+                    <th>Articles</th>
+                    <th>Montant total</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.PageResult.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            Aucun approvisionnement trouvé
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.PageResult.Items)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Reference</strong>
+                            </td>
+                            <td>@item.DateApprovisionnement.ToString("dd/MM/yyyy")</td>
+                            <td>@item.Fournisseur</td>
+                            <td>
+                                <span class="badge bg-info">@item.NombreArticles article(s)</span>
+                            </td>
+                            <td>
+                                <strong>@item.MontantTotal.ToString("N0") FCFA</strong>
+                            </td>
+                            <td>
+                                @{
+                                    var statutClass = item.Statut switch
+                                    {
+                                        gestionapp.Models.StatutApprovisionnement.Recu => "success",
+                                        gestionapp.Models.StatutApprovisionnement.EnAttente => "warning",
+                                        gestionapp.Models.StatutApprovisionnement.Annule => "danger",
+                                        _ => "secondary"
+                                    };
+                                    var statutText = item.Statut switch
+                                    {
+                                        gestionapp.Models.StatutApprovisionnement.Recu => "Reçu",
+                                        gestionapp.Models.StatutApprovisionnement.EnAttente => "En attente",
+                                        gestionapp.Models.StatutApprovisionnement.Annule => "Annulé",
+                                        _ => "Inconnu"
+                                    };
+                                }
+                                <span class="badge bg-@statutClass">@statutText</span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="#" class="btn btn-sm btn-outline-info" title="Voir">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.PageResult.TotalPages > 1)
+    {
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mt-4">
+                @if (Model.PageResult.HasPrevious)
+                {
+                    <li class="page-item">
+                        <a class="page-link" asp-route-page="@(Model.PageResult.Page - 1)"
+                           asp-route-search="@ViewBag.SearchTerm"
+                           asp-route-fournisseur="@ViewBag.SelectedFournisseur"
+                           asp-route-article="@ViewBag.SelectedArticle"
+                           asp-route-dateDebut="@ViewBag.DateDebut"
+                           asp-route-dateFin="@ViewBag.DateFin"
+                           asp-route-tri="@ViewBag.Tri">Précédent</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">Précédent</span>
+                    </li>
+                }
+
+                @for (int i = 1; i <= Model.PageResult.TotalPages; i++)
+                {
+                    @if (i == Model.PageResult.Page)
+                    {
+                        <li class="page-item active">
+                            <span class="page-link">
+                                @i
+                                <span class="visually-hidden">(current)</span>
+                            </span>
+                        </li>
+                    }
+                    else if ((i >= Model.PageResult.Page - 2 && i <= Model.PageResult.Page + 2) || i == 1 || i == Model.PageResult.TotalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-route-page="@i"
+                               asp-route-search="@ViewBag.SearchTerm"
+                               asp-route-fournisseur="@ViewBag.SelectedFournisseur"
+                               asp-route-article="@ViewBag.SelectedArticle"
+                               asp-route-dateDebut="@ViewBag.DateDebut"
+                               asp-route-dateFin="@ViewBag.DateFin"
+                               asp-route-tri="@ViewBag.Tri">@i</a>
+                        </li>
+                    }
+                    else if (i == Model.PageResult.Page - 3 || i == Model.PageResult.Page + 3)
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    }
+                }
+
+                @if (Model.PageResult.HasNext)
+                {
+                    <li class="page-item">
+                        <a class="page-link" asp-route-page="@(Model.PageResult.Page + 1)"
+                           asp-route-search="@ViewBag.SearchTerm"
+                           asp-route-fournisseur="@ViewBag.SelectedFournisseur"
+                           asp-route-article="@ViewBag.SelectedArticle"
+                           asp-route-dateDebut="@ViewBag.DateDebut"
+                           asp-route-dateFin="@ViewBag.DateFin"
+                           asp-route-tri="@ViewBag.Tri">Suivant</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">Suivant</span>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+    <!-- Statistiques -->
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total des approvisionnements</h6>
+                    <h2 class="text-primary">@ViewBag.TotalMontant?.ToString("N0") FCFA</h2>
+                    <small class="text-muted">Période: Avril 2023</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Nombre d'approvisionnements</h6>
+                    <h2 class="text-primary">@Model.PageResult.TotalItems</h2>
+                    <small class="text-muted">Période: Avril 2023</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Fournisseur principal</h6>
+                    <h2 class="text-info">@ViewBag.FournisseurPrincipal</h2>
+                    <small class="text-muted">@ViewBag.MontantFournisseurPrincipal?.ToString("N0") FCFA (52.5%)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+}
